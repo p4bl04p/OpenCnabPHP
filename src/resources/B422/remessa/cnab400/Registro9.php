@@ -26,31 +26,111 @@
 
 namespace CnabPHP\resources\B422\remessa\cnab400;
 
-use CnabPHP\resources\generico\remessa\cnab400\Generico1;
+use CnabPHP\RegistroRemAbstract;
+use CnabPHP\RemessaAbstract;
+use CnabPHP\resources\generico\remessa\cnab400\Generico9;
 
 /**
  * Classe Registro9 - Trailer do arquivo CNAB 400 do Banco Safra (422)
  */
-class Registro9 extends Generico1
+class Registro9 extends Generico9
 {
     protected $meta = array(
         'tipo_registro' => array(
-            'tamanho' => 1,
-            'default' => '9',
-            'tipo' => 'int',
-            'required' => true
+            'tamanho' => 1, 'default' => '9', 'tipo' => 'int', 'required' => true
         ),
-        'filler1' => array(
-            'tamanho' => 393,
-            'default' => ' ',
-            'tipo' => 'alfa',
-            'required' => true
+        'brancos1' => array(
+            'tamanho' => 367, 'default' => ' ', 'tipo' => 'alfa', 'required' => true
         ),
-        'numero_sequencial' => array(
-            'tamanho' => 6,
-            'default' => '0',
-            'tipo' => 'int',
-            'required' => true
+        'qtde_titulos' => array(
+            'tamanho' => 8, 'default' => '00000000', 'tipo' => 'int', 'required' => true
+        ),
+        'valor_total' => array(
+            'tamanho' => 15, 'default' => '000000000000000', 'tipo' => 'int', 'required' => true
+        ),
+        'sequencial_arquivo' => array(
+            'tamanho' => 3, 'default' => '001', 'tipo' => 'int', 'required' => true
+        ),
+        'sequencial_registro' => array(
+            'tamanho' => 6, 'default' => '000003', 'tipo' => 'int', 'required' => true
         ),
     );
+
+    public function __construct($data = null)
+    {
+        parent::__construct($data);
+    }
+
+    /**
+     * Override getText para calcular totalizadores antes da geração
+     */
+    public function getText()
+    {
+        $this->set_qtde_titulos(null);
+        $this->set_valor_total(null);
+        $this->set_sequencial_arquivo(null);
+        $this->set_sequencial_registro(null);
+
+        return parent::getText();
+    }
+
+    protected function set_qtde_titulos($value)
+    {
+        $lote = RemessaAbstract::getLote(0);
+        $qtde = 0;
+
+        if ($lote && isset($lote->children) && is_array($lote->children)) {
+            foreach ($lote->children as $registro) {
+                if (isset($registro->data['tipo_registro']) && $registro->data['tipo_registro'] == '1') {
+                    $qtde++;
+                }
+            }
+        }
+
+        $this->data['qtde_titulos'] = str_pad($qtde, 8, '0', STR_PAD_LEFT);
+    }
+
+    protected function set_valor_total($value)
+    {
+        $lote = RemessaAbstract::getLote(0);
+        $total = 0;
+
+        if ($lote && isset($lote->children) && is_array($lote->children)) {
+            foreach ($lote->children as $registro) {
+                if (isset($registro->data['tipo_registro']) && $registro->data['tipo_registro'] == '1') {
+                    $valor = isset($registro->data['valor']) ? (int)$registro->data['valor'] : 0;
+                    $total += $valor;
+                }
+            }
+        }
+
+        $this->data['valor_total'] = str_pad($total, 15, '0', STR_PAD_LEFT);
+    }
+
+    protected function set_sequencial_registro($value)
+    {
+        $lote = RemessaAbstract::getLote(0);
+        $sequencial = 1;
+
+        if ($lote && isset($lote->children)) {
+            foreach ($lote->children as $child) {
+                if (isset($child->data['tipo_registro']) && $child->data['tipo_registro'] == '1') {
+                    $sequencial++;
+                }
+            }
+        }
+
+        $sequencial++;
+        $this->data['sequencial_registro'] = str_pad($sequencial, 6, '0', STR_PAD_LEFT);
+    }
+
+    protected function set_sequencial_arquivo($value)
+    {
+        $lote = RemessaAbstract::getLote(0);
+        if ($lote && isset($lote->data['numero_sequencial_arquivo'])) {
+            $this->data['sequencial_arquivo'] = substr($lote->data['numero_sequencial_arquivo'], 0, 3);
+        } else {
+            $this->data['sequencial_arquivo'] = '001';
+        }
+    }
 }
