@@ -9,10 +9,11 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Sincronizando com o Upstream
-        uses: tgymnich/fork-sync@v2.0
-        with:
-          token: ${{ secrets.SYNC_TOKEN }}
-          owner: openboleto
-          base: master
-          head: master
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Sincronizando com o Upstream Oficial
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          gh repo sync ${{ github.repository }} --branch master
